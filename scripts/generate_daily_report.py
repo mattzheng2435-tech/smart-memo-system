@@ -6,6 +6,7 @@ import os
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from supabase import create_client, Client
+from dateutil import parser as date_parser
 
 # Supabase 配置
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -65,12 +66,15 @@ def format_report(now, pending, overdue, completed):
 
 """
         for task in overdue:
-            due = task['when_due'].astimezone(tz)
-            overdue_hours = int((now - due).total_seconds() / 3600)
-            overdue_str = f"{overdue_hours}h" if overdue_hours > 0 else "recently"
-            report += f"- [OVERDUE by {overdue_str}] **{task['what']}**\n"
-            if task['who']:
-                report += f"  Due: {due.strftime('%H:%M')}, Person: {task['who']}\n"
+            # 将字符串转换为 datetime 对象
+            due_str = task.get('when_due')
+            if due_str:
+                due = date_parser.isoparse(due_str).astimezone(tz)
+                overdue_hours = int((now - due).total_seconds() / 3600)
+                overdue_str = f"{overdue_hours}h" if overdue_hours > 0 else "recently"
+                report += f"- [OVERDUE by {overdue_str}] **{task['what']}**\n"
+                if task.get('who'):
+                    report += f"  Due: {due.strftime('%H:%M')}, Person: {task['who']}\n"
     else:
         report += """## [URGENT] Overdue Tasks
 
@@ -84,11 +88,13 @@ def format_report(now, pending, overdue, completed):
 """
     if pending:
         for task in pending:
-            priority_icon = "[HIGH]" if task['priority'] == 'high' else "[NORMAL]"
-            due = task['when_due'].astimezone(tz)
-            report += f"{priority_icon} **{due.strftime('%H:%M')}** - {task['what']}\n"
-            if task['who']:
-                report += f"  Person: {task['who']}\n"
+            priority_icon = "[HIGH]" if task.get('priority') == 'high' else "[NORMAL]"
+            due_str = task.get('when_due')
+            if due_str:
+                due = date_parser.isoparse(due_str).astimezone(tz)
+                report += f"{priority_icon} **{due.strftime('%H:%M')}** - {task['what']}\n"
+                if task.get('who'):
+                    report += f"  Person: {task['who']}\n"
     else:
         report += "[OK] No pending tasks for today\n"
 
@@ -99,8 +105,10 @@ def format_report(now, pending, overdue, completed):
 """
     if completed:
         for task in completed:
-            completed_at = task['completed_at'].astimezone(tz)
-            report += f"- ~~{task['what']}~~ ({completed_at.strftime('%H:%M')})\n"
+            completed_at_str = task.get('completed_at')
+            if completed_at_str:
+                completed_at = date_parser.isoparse(completed_at_str).astimezone(tz)
+                report += f"- ~~{task['what']}~~ ({completed_at.strftime('%H:%M')})\n"
     else:
         report += "No completed tasks yet\n"
 

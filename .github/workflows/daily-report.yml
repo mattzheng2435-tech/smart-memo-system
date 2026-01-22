@@ -21,7 +21,7 @@ jobs:
 
       - name: 安装依赖
         run: |
-          pip install supabase python-dotenv
+          pip install supabase python-dotenv python-dateutil
 
       - name: 生成每日报告
         env:
