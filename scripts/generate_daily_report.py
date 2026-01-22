@@ -38,7 +38,7 @@ def generate_daily_report():
     completed = completed_response.data
 
     # 格式化报告
-    report = format_report(now, pending, overdue, completed)
+    report = format_report(now, pending, overdue, completed, tz)
 
     # 保存到文件
     report_file = "daily_report.md"
@@ -51,7 +51,7 @@ def generate_daily_report():
     return report
 
 
-def format_report(now, pending, overdue, completed):
+def format_report(now, pending, overdue, completed, tz):
     """格式化 Markdown 报告"""
     date_str = now.strftime('%Y年%m月%d日')
     weekday = now.strftime('%A')
