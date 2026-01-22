@@ -21,11 +21,12 @@ jobs:
 
       - name: 安装依赖
         run: |
-          pip install asyncpg python-dotenv
+          pip install supabase python-dotenv
 
       - name: 生成每日报告
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: |
           python scripts/generate_daily_report.py
 

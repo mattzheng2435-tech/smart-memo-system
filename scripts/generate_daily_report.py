@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 """
-生成每日早报 - GitHub Actions 版本
+生成每日早报 - GitHub Actions 版本（使用 Supabase REST API）
 """
-import asyncio
-import asyncpg
 import os
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
+from supabase import create_client, Client
 
-# 数据库配置
-DATABASE_URL = os.getenv("DATABASE_URL")
+# Supabase 配置
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 
-async def generate_daily_report():
+def generate_daily_report():
     """生成每日报告"""
     print("[INFO] Generating daily report...")
 
-    # 连接数据库
-    conn = await asyncpg.connect(DATABASE_URL)
+    # 创建 Supabase 客户端
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
     # 获取当前时间（上海时区）
     tz = ZoneInfo("Asia/Shanghai")
@@ -24,37 +24,17 @@ async def generate_daily_report():
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = today_start + timedelta(days=1)
 
-    # 查询数据
-    # 今日待办
-    pending = await conn.fetch("""
-        SELECT what, when_due, priority, who
-        FROM memos
-        WHERE status = 'pending'
-          AND when_due >= $1
-          AND when_due < $2
-        ORDER BY priority DESC, when_due ASC
-    """, today_start, today_end)
+    # 查询数据 - 今日待办
+    pending_response = supabase.table('memos').select('*').eq('status', 'pending').gte('when_due', today_start.isoformat()).lt('when_due', today_end.isoformat()).order('priority', desc=True).order('when_due').execute()
+    pending = pending_response.data
 
     # 逾期任务
-    overdue = await conn.fetch("""
-        SELECT what, when_due, who
-        FROM memos
-        WHERE status = 'pending'
-          AND when_due < $1
-        ORDER BY when_due ASC
-    """, now)
+    overdue_response = supabase.table('memos').select('*').eq('status', 'pending').lt('when_due', now.isoformat()).order('when_due').execute()
+    overdue = overdue_response.data
 
     # 今日已完成
-    completed = await conn.fetch("""
-        SELECT what, completed_at
-        FROM memos
-        WHERE status = 'completed'
-          AND completed_at >= $1
-          AND completed_at < $2
-        ORDER BY completed_at DESC
-    """, today_start, today_end)
-
-    await conn.close()
+    completed_response = supabase.table('memos').select('*').eq('status', 'completed').gte('completed_at', today_start.isoformat()).lt('completed_at', today_end.isoformat()).order('completed_at', desc=True).execute()
+    completed = completed_response.data
 
     # 格式化报告
     report = format_report(now, pending, overdue, completed)
@@ -145,4 +125,4 @@ Keep going! Have a productive day!
 
 
 if __name__ == "__main__":
-    asyncio.run(generate_daily_report())
+    generate_daily_report()
