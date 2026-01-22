@@ -1,6 +1,9 @@
 name: 每日早报
 
 on:
+  push:
+    branches:
+      - main
   schedule:
     # 每天 09:30 北京时间 = 01:30 UTC
     - cron: '30 1 * * *'
