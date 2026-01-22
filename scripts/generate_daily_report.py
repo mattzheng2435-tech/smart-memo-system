@@ -3,14 +3,38 @@
 生成每日早报 - GitHub Actions 版本（使用 Supabase REST API）
 """
 import os
+import sys
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from supabase import create_client, Client
 from dateutil import parser as date_parser
 
+# 添加项目根目录到路径
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
+
 # Supabase 配置
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
+
+# 如果环境变量为空，尝试从本地配置文件读取
+if not SUPABASE_URL or not SUPABASE_KEY:
+    try:
+        import supabase_config.config as config
+        if not SUPABASE_URL:
+            SUPABASE_URL = config.SUPABASE_URL
+        if not SUPABASE_KEY:
+            SUPABASE_KEY = config.SUPABASE_SERVICE_KEY
+        print(f"[DEBUG] Loaded config from file: URL={SUPABASE_URL[:30]}...")
+    except ImportError as e:
+        print(f"[DEBUG] Failed to import config: {e}")
+        pass
+
+# 验证配置
+if not SUPABASE_URL:
+    raise ValueError("SUPABASE_URL is not configured")
+if not SUPABASE_KEY:
+    raise ValueError("SUPABASE_KEY is not configured")
 
 def generate_daily_report():
     """生成每日报告"""
