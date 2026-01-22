@@ -39,3 +39,13 @@ jobs:
           name: daily-report-${{ github.run_number }}
           path: daily_report.md
           retention-days: 30
+
+      - name: 发送邮件报告
+        env:
+          SMTP_SERVER: smtp.gmail.com
+          SMTP_PORT: 587
+          EMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          EMAIL_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          WORK_EMAIL: ${{ secrets.WORK_EMAIL }}
+        run: |
+          python scripts/send_report_email.py
