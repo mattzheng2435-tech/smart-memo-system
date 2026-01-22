@@ -48,7 +48,16 @@ def send_daily_report():
     # 发送邮件
     try:
         print(f"[INFO] Connecting to {smtp_server}:{smtp_port}")
-        server = smtplib.SMTP_SSL(smtp_server, smtp_port)
+        # 尝试使用 SMTP_SSL
+        try:
+            server = smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=30)
+            print("[INFO] Using SMTP_SSL")
+        except Exception as ssl_error:
+            print(f"[WARN] SMTP_SSL failed: {ssl_error}")
+            print("[INFO] Trying SMTP with STARTTLS...")
+            server = smtplib.SMTP(smtp_server, smtp_port, timeout=30)
+            server.starttls()
+
         server.login(email_address, email_password)
         server.send_message(msg)
         server.quit()
@@ -56,6 +65,7 @@ def send_daily_report():
         return True
     except Exception as e:
         print(f"[ERROR] Failed to send email: {e}")
+        print(f"[ERROR] Server: {smtp_server}:{smtp_port}")
         return False
 
 if __name__ == "__main__":
