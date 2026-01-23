@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - main
+  repository_dispatch:
+    types: [trigger-daily-report]
   schedule:
-    # 每5分钟运行一次（测试用）
-    - cron: '*/5 * * * *'
+    # 每天 09:30 北京时间 = 01:30 UTC
+    - cron: '30 1 * * *'
   workflow_dispatch:  # 支持手动触发测试
 
 jobs:
