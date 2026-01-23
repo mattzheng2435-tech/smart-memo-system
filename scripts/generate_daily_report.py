@@ -49,8 +49,8 @@ def generate_daily_report():
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = today_start + timedelta(days=1)
 
-    # 查询数据 - 今日待办
-    pending_response = supabase.table('memos').select('*').eq('status', 'pending').gte('when_due', today_start.isoformat()).lt('when_due', today_end.isoformat()).order('priority', desc=True).order('when_due').execute()
+    # 查询所有待办任务
+    pending_response = supabase.table('memos').select('*').eq('status', 'pending').order('when_due').execute()
     pending = pending_response.data
 
     # 逾期任务
@@ -90,7 +90,6 @@ def format_report(now, pending, overdue, completed, tz):
 
 """
         for task in overdue:
-            # 将字符串转换为 datetime 对象
             due_str = task.get('when_due')
             if due_str:
                 due = date_parser.isoparse(due_str).astimezone(tz)
@@ -98,7 +97,7 @@ def format_report(now, pending, overdue, completed, tz):
                 overdue_str = f"{overdue_hours}h" if overdue_hours > 0 else "recently"
                 report += f"- [OVERDUE by {overdue_str}] **{task['what']}**\n"
                 if task.get('who'):
-                    report += f"  Due: {due.strftime('%H:%M')}, Person: {task['who']}\n"
+                    report += f"  截止: {due.strftime('%m-%d %H:%M')}, 相关人: {task['who']}\n"
     else:
         report += """## [URGENT] Overdue Tasks
 
@@ -106,21 +105,71 @@ def format_report(now, pending, overdue, completed, tz):
 
 """
 
-    # 今日待办
-    report += f"""## Today's Tasks ({len(pending)} items)
+    # 分类待办任务：无时间 vs 有时间
+    urgent_tasks = []  # 无时间的（立即启动）
+    today_tasks = []    # 今天的任务
+    future_tasks = []   # 未来的任务
+
+    for task in pending:
+        due_str = task.get('when_due')
+        if not due_str:
+            urgent_tasks.append(task)
+        else:
+            due = date_parser.isoparse(due_str).astimezone(tz)
+            due_date = due.date()
+
+            if due_date == now.date():
+                today_tasks.append((task, due))
+            else:
+                future_tasks.append((task, due))
+
+    # 立即启动任务
+    if urgent_tasks:
+        report += """## [ASAP] 立即启动任务
 
 """
-    if pending:
-        for task in pending:
+        for task in urgent_tasks:
             priority_icon = "[HIGH]" if task.get('priority') == 'high' else "[NORMAL]"
-            due_str = task.get('when_due')
-            if due_str:
-                due = date_parser.isoparse(due_str).astimezone(tz)
-                report += f"{priority_icon} **{due.strftime('%H:%M')}** - {task['what']}\n"
-                if task.get('who'):
-                    report += f"  Person: {task['who']}\n"
-    else:
-        report += "[OK] No pending tasks for today\n"
+            report += f"{priority_icon} **{task['what']}**\n"
+            if task.get('who'):
+                report += f"  相关人: {task['who']}\n"
+        report += "\n"
+
+    # 今天的任务
+    if today_tasks:
+        report += f"""## Today's Tasks ({len(today_tasks)} items)
+
+"""
+        # 按时间排序
+        today_tasks.sort(key=lambda x: x[1])
+
+        for task, due in today_tasks:
+            priority_icon = "[HIGH]" if task.get('priority') == 'high' else "[NORMAL]"
+            report += f"{priority_icon} **{due.strftime('%H:%M')}** - {task['what']}\n"
+            if task.get('who'):
+                report += f"  相关人: {task['who']}\n"
+        report += "\n"
+
+    # 未来任务
+    if future_tasks:
+        report += f"""## Upcoming Tasks ({len(future_tasks)} items)
+
+"""
+        # 按时间排序
+        future_tasks.sort(key=lambda x: x[1])
+
+        for task, due in future_tasks:
+            priority_icon = "[HIGH]" if task.get('priority') == 'high' else "[NORMAL]"
+            date_str = due.strftime('%m-%d')
+            time_str = due.strftime('%H:%M')
+            report += f"{priority_icon} **{date_str} {time_str}** - {task['what']}\n"
+            if task.get('who'):
+                report += f"  相关人: {task['who']}\n"
+        report += "\n"
+
+    # 如果没有任务
+    if not urgent_tasks and not today_tasks and not future_tasks:
+        report += "## All Tasks\n\n[OK] No pending tasks\n\n"
 
     # 今日已完成
     report += f"""
