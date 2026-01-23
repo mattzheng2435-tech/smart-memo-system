@@ -1,0 +1,23 @@
+name: Scheduler
+
+on:
+  schedule:
+    # 每5分钟运行一次，触发主工作流
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  trigger-daily-report:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Daily Report Workflow
+        run: |
+          echo "Triggering daily report workflow..."
+          curl -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/repos/mattzheng2435-tech/smart-memo-system/actions/workflows/daily-report.yml/dispatches \
+            -d '{"ref":"main"}'
+
+          echo "Daily report workflow triggered successfully!"
